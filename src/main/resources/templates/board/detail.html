@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="@{'게시판 - ' + ${post.title}}"></title>
+    <link rel='stylesheet' href='/webjars/bootstrap/4.5.0/css/bootstrap.min.css'>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        #comment {
+            display: none;
+        }
+        .edit-text{
+            display:none;
+        }
+        .icon{
+            display:none;
+        }
+        #cards-box{
+            background-color: aliceblue;
+        }
+
+    </style>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+
+    <script>
+
+        $(document).ready(function () {
+             getMemo();
+        })
+
+        function isValidContents(contents) {
+            if (contents == '') {
+                alert('내용을 입력해주세요');
+                return false;
+            }
+        }
+
+        function editCom(id){
+            showEdit(id);
+            let contents = $(`#${id}-contents`).text().trim();
+            $(`#${id}-textarea`).val(contents);
+        }
+        function showEdit(id){
+            $(`#${id}-editarea`).show();
+            $(`#${id}-submit`).show();
+            $(`#${id}-delete`).show();
+
+            $(`#${id}-contents`).hide();
+            $(`#${id}-edit`).hide();
+        }
+
+        function showComment() {
+            if($('#comment').css('display')=="none"){
+                $('#comment').show();
+            }else{
+                $('#comment').hide();
+            }
+        }
+
+
+        function getMemo() {
+            $.ajax({
+                type: "GET",
+                url: window.location.pathname + '/comment',
+                // contentType: "application/json",
+                // data: JSON.stringify(data),
+                success: function (response) {
+                    for (let i = 0; i < response.length; i++) {
+                        let message = response[i];
+
+                        let id = message['id'];
+                        let user = message['username'];
+                        let contents = message['contents'];
+                        let modifiedDate = message['modifiedDate'];
+                        modifiedDate = moment(modifiedDate).format("YYYY-MM-DD HH:mm");
+                        addHTML(id, user, contents, modifiedDate);
+                    }
+                    // window.location.reload();
+                }
+            });
+
+            // window.location.href = `/post/${id}`
+        }
+
+        function addHTML(id, user, contents, modifiedDate) {
+            let tempHtml = makeMessage(id, user, contents, modifiedDate);
+            $('#cards-box').append(tempHtml);
+
+        }
+
+        function makeMessage(id, user, contents, modifiedDate) {
+            return `<div class="card-body">
+                        <span class="card-title">
+                         <p class="card-text" id="${id}-user">${user}</p>
+                        </span>
+                        <span class="card-text"><small class="text-muted">${modifiedDate}</small></span>
+                        <p class="card-text" id="${id}-contents">${contents}</p>
+                        <p class="edit-text" id="${id}-editarea"><textarea id="${id}-textarea" class="te-edit" name="" id="" cols="30" rows="5"></textarea></p>
+                        <span class="row mt-3">
+                            <div class="col-auto mr-auto"></div>
+
+                            <div class="col-auto">
+                                <a id="${id}-edit" class="btn btn-info" role="button" onclick="editCom('${id}')">수정</a>
+                            </div>
+                            <div class="col-auto">
+                                    <a id="${id}-submit" class="icon btn btn-info" role="button" onclick="submitEdit('${id}')">완료</a>
+                            </div>
+                            <div class="col-auto">
+                                    <button id="${id}-delete" type="submit" class="btn btn-danger" onclick="delCom('${id}')">삭제</button>
+                            </div>
+
+                        </span>
+                    </div>`;
+        }
+
+        function delCom(id){
+
+            let username = $(`#${id}-user`).text().trim();
+            let contents = $(`#${id}-textarea`).val().trim();
+            let data = {'username': username, 'contents': contents};
+
+            $.ajax({
+                type: "DELETE",
+                url: `/comment/${id}`,
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                beforeSend : function(xhr, opts){
+                    if(!confirm("삭제하시겠습니까?")){
+                        return false;
+                    }
+                },
+                success: function (response) {
+                    alert('삭제되었습니다')
+                    window.location.reload();
+                },
+                error: function(response){
+                    alert('작성자만 삭제할 수 있습니다');
+                    window.location.reload();
+                }
+            });
+        }
+
+        function writeMemo(){
+
+            let username = $('#inputAuthor').val();
+            let contents = $('#inputContent').val();
+
+            if (isValidContents(contents) == false) {
+                return;
+            }
+
+            let data = {'username': username, 'contents': contents}
+
+            $.ajax({
+                type: "POST",
+                url: window.location.pathname + '/comment',
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (response) {
+                    alert('댓글이 성공적으로 작성되었습니다.');
+                    window.location.reload();
+                },
+                error: function(response){
+                    alert('로그인이 필요한 서비스입니다.');
+                    // location.href="login.html";
+                }
+            });
+
+            $('#comment').hide();
+        }
+
+        function submitEdit(id){
+            let username = $(`#${id}-user`).text().trim();
+            let contents = $(`#${id}-textarea`).val().trim();
+
+            if (isValidContents(contents) == false) {
+                return;
+            }
+
+            let data = {'username': username, 'contents': contents};
+
+            $.ajax({
+                type: "PUT",
+                url: window.window.location.pathname + `/comment/${id}`,
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function (response) {
+                    alert('메시지 변경에 성공하였습니다.');
+                    window.location.reload();
+                },
+                error: function(response){
+                    alert('작성자만 수정할 수 있습니다');
+                    window.location.reload();
+                }
+            });
+        }
+
+
+    </script>
+</head>
+<body>
+<header th:insert="common/header.html"></header>
+
+<div class="container">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title" th:text="@{${post.title}}"></h5>
+            <span class="card-title">
+<!--                <sec:authorize access="isAuthenticated()">-->
+                <!--                    <span sec:authentication="principal.username"></span>-->
+                <!--                </sec:authorize>-->
+                 <p class="card-text" th:text="${post.author}"></p>
+            </span>
+            <p class="card-text"><small class="text-muted" th:text="${#temporals.format(post.modifiedDate, 'yyyy-MM-dd HH:mm')}"></small></p>
+            <p class="card-text" th:text="${post.content}"></p>
+
+
+            <span class="row mt-3" th:if="${username}==${post.author}">
+                <div class="col-auto mr-auto"></div>
+                <div class="col-auto">
+                    <a class="btn btn-info" th:href="@{'/post/edit/' + ${post.id}}" role="button">수정</a>
+                </div>
+                <div class="col-auto">
+                    <form id="delete-form" th:action="@{'/edit/' + ${post.id}}" method="post">
+                        <input type="hidden" name="_method" value="delete"/>
+                        <button id="delete-btn" type="submit" class="btn btn-danger">삭제</button>
+                    </form>
+                </div>
+            </span>
+
+        </div>
+    </div>
+
+
+
+    <!--    댓글-->
+    <div>
+        <button sec:authorize="isAuthenticated()" type="button" class="btn btn-primary" onclick="showComment()">댓글</button>
+<!--        <button type="button" class="btn btn-primary" onclick="showComment()">댓글</button>-->
+<!--        <a sec:authorize="isAuthenticated()" th:href="@{/user/logout}">로그아웃</a>-->
+    </div>
+
+    <div class="area-write"  id="comment">
+<!--        <form action="../comment" method="post">-->
+        <div class="form-group row" >
+<!--            <label for="inputAuthor" class="col-sm-2 col-form-label"><strong>작성자</strong></label>-->
+            <label class="col-sm-2 col-form-label"><strong>작성자</strong></label>
+            <div class="col-sm-10">
+<!--                <input type="text" name="author" class="form-control" id="inputAuthor" th:value="${username}" readonly/>-->
+                <input type="text" class="form-control" id="inputAuthor" th:value="${username}" readonly/>
+            </div>
+        </div>
+        <div class="form-group row">
+<!--            <label for="inputContent" class="col-sm-2 col-form-label"><strong>내용</strong></label>-->
+            <label class="col-sm-2 col-form-label"><strong>내용</strong></label>
+            <div class="col-sm-10">
+<!--                <textarea type="text" name="content" class="form-control" id="inputContent"></textarea>-->
+                <textarea type="text" class="form-control" id="inputContent"></textarea>
+
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-auto mr-auto"></div>
+            <div class="col-auto">
+<!--                <input class="btn btn-primary" type="submit" role="button" value="댓글쓰기" onclick="writeMemo()">-->
+<!--                <a sec:authorize="isAuthenticated()" th:href="@{/user/logout}">로그아웃</a>-->
+<!--                <sec:authorize access="isAuthenticated()">-->
+                    <input class="btn btn-primary" type="submit" role="button" value="댓글쓰기" onclick="writeMemo()">
+<!--                </sec:authorize>-->
+            </div>
+        </div>
+<!--        </form>-->
+    </div>
+
+
+    <div class="card" id="cards-box">
+    </div>
+
+</div>
+
+
+<script src="/webjars/jquery/3.5.1/jquery.min.js"></script>
+<script src="/webjars/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+</body>
+</html>
